@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>今天吃什麼？</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif;
+    background: #f5f4f0;
+    min-height: 100vh;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 2rem 1rem 3rem;
+    color: #1a1a1a;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 520px;
+  }
+  h1 {
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 1.5rem;
+    color: #1a1a1a;
+  }
+  h1 span {
+    font-size: 13px;
+    font-weight: 400;
+    color: #888;
+    margin-left: 8px;
+  }
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1.5rem;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px 8px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    color: #888;
+    text-align: center;
+    line-height: 1.4;
+    transition: all 0.12s;
+  }
+  .tab.active {
+    background: #fff;
+    color: #1a1a1a;
+    border-color: #aaa;
+    font-weight: 500;
+  }
+  .tab-label {
+    font-size: 11px;
+    color: #bbb;
+    display: block;
+    margin-top: 2px;
+  }
+  .tab.active .tab-label { color: #999; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .boxes-8 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 1.25rem;
+  }
+  .boxes-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 1.25rem;
+  }
+  .box {
+    aspect-ratio: 1;
+    border-radius: 12px;
+    border: 1px solid #e0e0e0;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.12s;
+    user-select: none;
+    overflow: hidden;
+  }
+  .box:hover:not(.opened):not(.used) { transform: translateY(-4px); border-color: #bbb; }
+  .box:active:not(.opened):not(.used) { transform: scale(0.95); }
+  .box.opened { background: #f5f4f0; cursor: default; border-color: #e8e8e8; }
+  .box.used { opacity: 0.28; cursor: default; }
+
+  .result {
+    text-align: center;
+    padding: 1.25rem;
+    background: #f0efe9;
+    border-radius: 12px;
+    border: 1px solid #e5e4df;
+    min-height: 68px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+  .result-label { font-size: 12px; color: #999; margin-bottom: 4px; }
+  .result-big { font-size: 26px; font-weight: 500; color: #1a1a1a; }
+
+  button {
+    display: block;
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 14px;
+    color: #1a1a1a;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.12s;
+    margin-bottom: 8px;
+  }
+  button:hover { background: #f5f4f0; }
+  button:active { transform: scale(0.98); }
+
+  .section-label { font-size: 12px; color: #999; margin-bottom: 8px; }
+  .input-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 1rem;
+  }
+  input[type="text"] {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    background: #fff;
+    color: #1a1a1a;
+    text-align: center;
+    outline: none;
+    transition: border-color 0.12s;
+  }
+  input[type="text"]:focus { border-color: #aaa; }
+  input[type="text"]::placeholder { color: #ccc; }
+
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1rem; }
+  .tag {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    background: #f0efe9;
+    border: 1px solid #e0dfd9;
+    border-radius: 20px;
+    font-size: 12px;
+    color: #1a1a1a;
+  }
+  .tag button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    color: #aaa;
+    padding: 0;
+    line-height: 1;
+    width: auto;
+    margin: 0;
+  }
+  .tag button:hover { background: none; color: #555; }
+
+  @media (max-width: 400px) {
+    .boxes-8 { grid-template-columns: repeat(4, 1fr); gap: 7px; }
+    .result-big { font-size: 22px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>今天吃什麼？<span>盲盒決定版</span></h1>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(1)">
+      完全不知道
+      <span class="tab-label">8 個盲盒隨機抽</span>
+    </div>
+    <div class="tab" onclick="switchTab(2)">
+      有點方向
+      <span class="tab-label">自填 3 選 1</span>
+    </div>
+  </div>
+
+  <div class="panel active" id="panel1">
+    <div class="section-label">你的餐廳清單</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <input type="text" id="food-input" placeholder="輸入選項" maxlength="10" style="flex:1;text-align:left;" />
+      <button onclick="addFood()" style="width:auto;padding:9px 16px;margin:0;">加入</button>
+    </div>
+    <div class="tags" id="tags"></div>
+    <div class="boxes-8" id="boxes8"></div>
+    <div class="result">
+      <div class="result-label" id="label8">點開一個盲盒</div>
+      <div class="result-big" id="result8">—</div>
+    </div>
+    <button onclick="reset8()">重新洗牌</button>
+  </div>
+
+  <div class="panel" id="panel2">
+    <div class="section-label">輸入你的 3 個選項</div>
+    <div class="input-3">
+      <input type="text" id="c1" placeholder="選項一" maxlength="8" />
+      <input type="text" id="c2" placeholder="選項二" maxlength="8" />
+      <input type="text" id="c3" placeholder="選項三" maxlength="8" />
+    </div>
+    <button onclick="startGame3()">裝盒！</button>
+    <div class="boxes-3" id="boxes3"></div>
+    <div class="result" id="result3wrap" style="display:none;">
+      <div class="result-label">今天就吃</div>
+      <div class="result-big" id="result3">—</div>
+    </div>
+    <button onclick="reset3()" id="reset3btn" style="display:none;">重來</button>
+  </div>
+</div>
+
+<script>
+const PALETTES = [
+  { lid:'#AFA9EC', box:'#CECBF6', bow:'#7F77DD', star:'#534AB7' },
+  { lid:'#5DCAA5', box:'#9FE1CB', bow:'#1D9E75', star:'#0F6E56' },
+  { lid:'#F0997B', box:'#F5C4B3', bow:'#D85A30', star:'#993C1D' },
+  { lid:'#ED93B1', box:'#F4C0D1', bow:'#D4537E', star:'#993556' },
+  { lid:'#85B7EB', box:'#B5D4F4', bow:'#378ADD', star:'#185FA5' },
+  { lid:'#97C459', box:'#C0DD97', bow:'#639922', star:'#3B6D11' },
+  { lid:'#EF9F27', box:'#FAC775', bow:'#BA7517', star:'#854F0B' },
+  { lid:'#F09595', box:'#F7C1C1', bow:'#E24B4A', star:'#A32D2D' },
+];
+
+function boxSVG(p, num) {
+  return `<svg viewBox="0 0 80 80" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    <rect x="8" y="30" width="64" height="44" rx="6" fill="${p.box}"/>
+    <rect x="8" y="28" width="64" height="14" rx="4" fill="${p.lid}"/>
+    <rect x="34" y="28" width="12" height="46" rx="3" fill="${p.bow}" opacity="0.6"/>
+    <ellipse cx="28" cy="26" rx="9" ry="5" fill="${p.bow}" transform="rotate(-20 28 26)"/>
+    <ellipse cx="52" cy="26" rx="9" ry="5" fill="${p.bow}" transform="rotate(20 52 26)"/>
+    <circle cx="40" cy="25" r="5" fill="${p.star}"/>
+    <polygon points="40,10 41.5,15 47,15 42.5,18 44,23 40,20 36,23 37.5,18 33,15 38.5,15" fill="${p.star}" opacity="0.85"/>
+    <text x="40" y="62" text-anchor="middle" font-size="11" font-weight="500" fill="${p.star}" font-family="-apple-system,sans-serif">#${num}</text>
+  </svg>`;
+}
+
+function openedSVG(p, food) {
+  const lines = food.length > 4 ? [food.slice(0,4), food.slice(4)] : [food];
+  const textY = lines.length > 1 ? [44,58] : [52];
+  return `<svg viewBox="0 0 80 80" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+    <rect x="8" y="38" width="64" height="36" rx="6" fill="${p.box}"/>
+    <rect x="8" y="10" width="64" height="16" rx="4" fill="${p.lid}" opacity="0.7" transform="rotate(-8 40 18)"/>
+    <rect x="34" y="10" width="12" height="16" rx="3" fill="${p.bow}" opacity="0.5" transform="rotate(-8 40 18)"/>
+    <circle cx="40" cy="18" r="4" fill="${p.star}" opacity="0.6" transform="rotate(-8 40 18)"/>
+    ${lines.map((l,i)=>`<text x="40" y="${textY[i]}" text-anchor="middle" font-size="${lines.length>1?11:12}" font-weight="500" fill="${p.star}" font-family="-apple-system,sans-serif">${l}</text>`).join('')}
+  </svg>`;
+}
+
+function shuffle(arr) {
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+let foods = ['拉麵','自助餐','火鍋','壽司','小吃店','牛肉麵','水餃','義大利麵'];
+let assign8=[], opened8=[], chosen8=-1;
+
+function init8() {
+  assign8 = shuffle(foods);
+  while(assign8.length < 8) assign8 = [...assign8, ...shuffle(foods)];
+  assign8 = assign8.slice(0,8);
+  opened8 = Array(8).fill(false);
+  chosen8 = -1;
+  document.getElementById('result8').textContent='—';
+  document.getElementById('label8').textContent='點開一個盲盒';
+  render8();
+}
+
+function render8() {
+  const c=document.getElementById('boxes8'); c.innerHTML='';
+  for(let i=0;i<8;i++){
+    const div=document.createElement('div');
+    div.className='box'+(opened8[i]?' opened':(chosen8!==-1?' used':''));
+    div.innerHTML=opened8[i]?openedSVG(PALETTES[i],assign8[i]):boxSVG(PALETTES[i],i+1);
+    div.onclick=()=>open8(i);
+    c.appendChild(div);
+  }
+}
+
+function open8(i) {
+  if(opened8[i]||chosen8!==-1) return;
+  opened8[i]=true; chosen8=i;
+  document.getElementById('label8').textContent='今天就吃';
+  document.getElementById('result8').textContent=assign8[i];
+  render8();
+}
+
+function reset8() { init8(); }
+
+function addFood() {
+  const inp=document.getElementById('food-input');
+  const val=inp.value.trim();
+  if(!val||foods.includes(val)){inp.value='';return;}
+  foods.push(val); inp.value='';
+  renderTags(); init8();
+}
+
+function removeFood(idx) {
+  foods.splice(idx,1);
+  if(foods.length===0) foods=['拉麵'];
+  renderTags(); init8();
+}
+
+function renderTags() {
+  const t=document.getElementById('tags'); t.innerHTML='';
+  foods.forEach((f,i)=>{
+    const d=document.createElement('div'); d.className='tag';
+    d.innerHTML=`${f} <button onclick="removeFood(${i})">×</button>`;
+    t.appendChild(d);
+  });
+}
+
+let assign3=[], opened3=[], chosen3=-1, ready3=false;
+
+function startGame3() {
+  const v=[
+    document.getElementById('c1').value.trim(),
+    document.getElementById('c2').value.trim(),
+    document.getElementById('c3').value.trim(),
+  ].filter(x=>x);
+  if(v.length<2){alert('至少填 2 個選項！');return;}
+  const pool=v.length===3?v:[...v, v[Math.floor(Math.random()*v.length)]];
+  assign3=shuffle(pool); opened3=[false,false,false]; chosen3=-1; ready3=true;
+  document.getElementById('result3wrap').style.display='none';
+  document.getElementById('reset3btn').style.display='none';
+  render3();
+}
+
+function render3() {
+  const c=document.getElementById('boxes3'); c.innerHTML='';
+  if(!ready3) return;
+  for(let i=0;i<3;i++){
+    const div=document.createElement('div');
+    div.className='box'+(opened3[i]?' opened':(chosen3!==-1?' used':''));
+    div.innerHTML=opened3[i]?openedSVG(PALETTES[i],assign3[i]):boxSVG(PALETTES[i],i+1);
+    div.onclick=()=>open3(i);
+    c.appendChild(div);
+  }
+}
+
+function open3(i) {
+  if(!ready3||opened3[i]||chosen3!==-1) return;
+  opened3[i]=true; chosen3=i;
+  document.getElementById('result3').textContent=assign3[i];
+  document.getElementById('result3wrap').style.display='flex';
+  document.getElementById('reset3btn').style.display='block';
+  render3();
+}
+
+function reset3() {
+  ['c1','c2','c3'].forEach(id=>document.getElementById(id).value='');
+  ready3=false; chosen3=-1;
+  document.getElementById('boxes3').innerHTML='';
+  document.getElementById('result3wrap').style.display='none';
+  document.getElementById('reset3btn').style.display='none';
+}
+
+function switchTab(n) {
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===n-1));
+  document.querySelectorAll('.panel').forEach((p,i)=>p.classList.toggle('active',i===n-1));
+}
+
+document.getElementById('food-input').addEventListener('keydown',e=>{if(e.key==='Enter')addFood();});
+renderTags();
+init8();
+</script>
+</body>
+</html>
