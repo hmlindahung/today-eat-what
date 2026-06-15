@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>專屬充電站</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400&family=Noto+Sans+TC:wght@300;400&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #07070D;
+    --surface: #0F0F18;
+    --gold: #D4A843;
+    --rose: #F07090;
+    --rose-dim: rgba(240,112,144,0.2);
+    --white: #F5F2EE;
+    --muted: rgba(245,242,238,0.90);
+    --glow-rose: 0 0 40px rgba(240,112,144,0.5);
+    --glow-gold: 0 0 40px rgba(212,168,67,0.5);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background-color: #07070D !important; background: #07070D !important;
+    color: var(--white);
+    font-family: 'Noto Sans TC', sans-serif;
+    overflow: hidden;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  #canvas {
+    background-color: #07070D;
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+
+  /* ── PHASE SCREENS ── */
+  .phase {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 24px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.6s ease;
+  }
+  .phase.active { opacity: 1; pointer-events: all; }
+
+  /* ── PHASE 1 ── */
+  #phase1 .subtitle {
+    font-family: 'Noto Serif TC', serif;
+    font-size: clamp(14px, 3.5vw, 18px);
+    font-weight: 300;
+    color: rgba(245,242,238,0.92);
+    letter-spacing: 0.15em;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+  #phase1 .title {
+    font-family: 'Noto Serif TC', serif;
+    font-size: clamp(20px, 5vw, 28px);
+    font-weight: 300;
+    color: var(--white);
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  #phase1 .hint {
+    font-size: clamp(12px, 3vw, 14px);
+    color: rgba(245,242,238,0.92);
+    letter-spacing: 0.1em;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  #bubble-field {
+    position: relative;
+    width: min(360px, 90vw);
+    height: min(360px, 50vh);
+    margin-top: 8px;
+  }
+
+  .bubble {
+    position: absolute;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+    animation: float-bubble 3s ease-in-out infinite;
+    will-change: transform;
+    border: 1.5px solid rgba(240,112,144,0.55);
+    background: radial-gradient(circle at 35% 35%, rgba(240,112,144,0.28), rgba(15,15,24,0.92));
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 18px rgba(240,112,144,0.15), inset 0 1px 0 rgba(255,255,255,0.08);
+  }
+  .bubble:active { transform: scale(0.92); }
+
+  .bubble .emoji { font-size: clamp(22px, 5.5vw, 30px); }
+  .bubble .label {
+    font-size: clamp(10px, 2.5vw, 13px);
+    color: #F9A0B8;
+    letter-spacing: 0.05em;
+    margin-top: 3px;
+    font-weight: 400;
+  }
+
+  @keyframes float-bubble {
+    0%,100% { transform: translateY(0px) rotate(-2deg); }
+    33%      { transform: translateY(-12px) rotate(2deg); }
+    66%      { transform: translateY(-6px) rotate(-1deg); }
+  }
+
+  /* burst particles */
+  .particle {
+    position: fixed;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 999;
+    animation: burst 0.55s ease-out forwards;
+  }
+  @keyframes burst {
+    0%   { opacity: 1; transform: translate(0,0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.2); }
+  }
+
+  /* ripple on bubble pop */
+  .ripple-pop {
+    position: fixed;
+    border-radius: 50%;
+    border: 2px solid var(--rose);
+    pointer-events: none;
+    z-index: 998;
+    animation: ripple-out 0.45s ease-out forwards;
+  }
+  @keyframes ripple-out {
+    0%   { opacity: 0.7; transform: scale(0.5); }
+    100% { opacity: 0;   transform: scale(2.5); }
+  }
+
+  /* ── PHASE 2 ── */
+  #phase2 .p2-label {
+    font-family: 'Noto Serif TC', serif;
+    font-size: clamp(14px, 3.5vw, 18px);
+    font-weight: 300;
+    color: rgba(245,242,238,0.92);
+    letter-spacing: 0.12em;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  #phase2 .p2-sub {
+    font-size: clamp(12px, 3vw, 14px);
+    color: rgba(212,168,67,0.85);
+    letter-spacing: 0.12em;
+    margin-bottom: 48px;
+    text-align: center;
+  }
+
+  #palm-btn {
+    position: relative;
+    width: clamp(140px, 35vw, 180px);
+    height: clamp(140px, 35vw, 180px);
+    border-radius: 50%;
+    border: 1.5px solid rgba(201,168,108,0.4);
+    background: radial-gradient(circle at 40% 40%, rgba(212,168,67,0.22), rgba(15,15,24,0.95));
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    cursor: pointer;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #palm-btn.pressing {
+    border-color: var(--gold);
+    box-shadow: var(--glow-gold), 0 0 60px rgba(201,168,108,0.2);
+  }
+  #palm-btn .palm-emoji { font-size: clamp(44px, 10vw, 60px); }
+  #palm-btn .palm-hint {
+    font-size: clamp(10px, 2.5vw, 12px);
+    color: rgba(212,168,67,0.8);
+    letter-spacing: 0.1em;
+    margin-top: 6px;
+  }
+
+  /* battery bar */
+  #battery-wrap {
+    margin-top: 48px;
+    width: min(260px, 70vw);
+  }
+  #battery-label {
+    display: flex; justify-content: space-between;
+    font-size: 11px;
+    color: rgba(245,242,238,0.92);
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  #battery-track {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.08);
+    overflow: hidden;
+  }
+  #battery-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--rose), var(--gold));
+    transition: width 0.12s linear;
+    box-shadow: 0 0 8px rgba(201,168,108,0.5);
+  }
+
+  /* flying hearts */
+  .heart-fly {
+    position: fixed;
+    pointer-events: none;
+    z-index: 997;
+    font-size: clamp(14px, 3.5vw, 20px);
+    animation: heart-float 1.2s ease-out forwards;
+  }
+  @keyframes heart-float {
+    0%   { opacity: 1; transform: translate(0, 0) scale(0.6) rotate(var(--r)); }
+    60%  { opacity: 0.9; }
+    100% { opacity: 0; transform: translate(var(--hx), var(--hy)) scale(1.1) rotate(var(--r)); }
+  }
+
+  /* ── PHASE 3 ── */
+  #phase3 {
+    background: radial-gradient(ellipse at 50% 50%, rgba(201,168,108,0.06) 0%, transparent 70%);
+  }
+  #phase3 .final-card {
+    max-width: min(340px, 88vw);
+    padding: 40px 36px;
+    border: 1px solid rgba(201,168,108,0.2);
+    border-radius: 20px;
+    background: rgba(18,18,26,0.85);
+    backdrop-filter: blur(12px);
+    text-align: center;
+    animation: card-entrance 1s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  @keyframes card-entrance {
+    0%   { opacity: 0; transform: scale(0.88) translateY(20px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .final-top {
+    font-size: clamp(28px, 7vw, 40px);
+    margin-bottom: 20px;
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  @keyframes pulse-glow {
+    0%,100% { filter: drop-shadow(0 0 8px rgba(201,168,108,0.5)); }
+    50%      { filter: drop-shadow(0 0 20px rgba(201,168,108,0.8)); }
+  }
+  .final-tired {
+    font-family: 'Noto Serif TC', serif;
+    font-size: clamp(18px, 4.5vw, 24px);
+    font-weight: 300;
+    color: var(--gold);
+    letter-spacing: 0.1em;
+    margin-bottom: 20px;
+  }
+  .final-msg {
+    font-family: 'Noto Serif TC', serif;
+    font-size: clamp(14px, 3.5vw, 17px);
+    font-weight: 300;
+    color: var(--white);
+    line-height: 1.9;
+    letter-spacing: 0.05em;
+  }
+  .final-msg em {
+    font-style: normal;
+    color: var(--rose);
+  }
+  .final-heart {
+    display: block;
+    margin-top: 24px;
+    font-size: clamp(16px, 4vw, 20px);
+    color: var(--gold);
+    letter-spacing: 0.08em;
+    font-size: clamp(13px, 3.2vw, 16px);
+    color: rgba(201,168,108,0.7);
+  }
+
+  /* floating gold dust in phase3 */
+  .dust {
+    position: fixed;
+    width: 3px; height: 3px;
+    border-radius: 50%;
+    background: var(--gold);
+    pointer-events: none;
+    opacity: 0;
+    animation: dust-drift var(--d) ease-in-out var(--delay) infinite;
+  }
+  @keyframes dust-drift {
+    0%   { opacity: 0; transform: translate(0, 0); }
+    20%  { opacity: 0.6; }
+    80%  { opacity: 0.3; }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)); }
+  }
+
+  /* subtle vignette */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: rgba(7,7,13,0.0);
+    pointer-events: none;
+  }
+
+  /* shimmer overlay on phase transition */
+  #shimmer {
+    position: fixed; inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(201,168,108,0.12), transparent 60%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    z-index: 50;
+  }
+  #shimmer.flash { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bubble, .heart-fly, .particle, .dust { animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="shimmer"></div>
+
+<div id="canvas">
+
+  <!-- PHASE 1 -->
+  <div id="phase1" class="phase active">
+    <p class="subtitle">今天也辛苦了</p>
+    <h1 class="title">把煩惱通通消滅吧</h1>
+    <p class="hint">點擊氣泡，讓它消失 ✦</p>
+    <div id="bubble-field"></div>
+  </div>
+
+  <!-- PHASE 2 -->
+  <div id="phase2" class="phase">
+    <p class="p2-label">現在，充電</p>
+    
+    <div id="palm-btn">
+      <span class="palm-emoji">✋</span>
+      <span class="palm-hint">長按充電</span>
+    </div>
+    <div id="battery-wrap">
+      <div id="battery-label">
+        <span>電量</span>
+        <span id="pct-text">0%</span>
+      </div>
+      <div id="battery-track">
+        <div id="battery-fill"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PHASE 3 -->
+  <div id="phase3" class="phase">
+    <div class="final-card">
+      <div class="final-top">🔋</div>
+      <div class="final-tired">好想抱你</div>
+      <p class="final-msg">
+        不論外面世界多吵雜，<br>
+        回到這裡，<br>
+        我永遠當你的<em>充電器</em> 🔋<br>
+        <br>
+        不限時數 <em>❤️</em>
+      </p>
+      <span class="final-heart">— 專屬於你的充電站 ✦</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── UTILITIES ───────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const rand = (min, max) => Math.random() * (max - min) + min;
+const randInt = (min, max) => Math.floor(rand(min, max));
+
+function showPhase(n) {
+  document.querySelectorAll('.phase').forEach((p, i) => {
+    p.classList.toggle('active', i + 1 === n);
+  });
+  const s = $('shimmer');
+  s.classList.add('flash');
+  setTimeout(() => s.classList.remove('flash'), 800);
+}
+
+// ─── PHASE 1: BUBBLES ────────────────────────────────────
+const BUBBLES_DATA = [
+  { emoji: '😤', label: '生氣', color: '#E8829A' },
+  { emoji: '😨', label: '害怕', color: '#9A82E8' },
+  { emoji: '😔', label: '傷心', color: '#82B4E8' },
+  { emoji: '😩', label: '疲憊', color: '#C9A86C' },
+  { emoji: '😶‍🌫️', label: '迷茫', color: '#82E8D4' },
+];
+
+let bubblesLeft = 0;
+
+function initBubbles() {
+  const field = $('bubble-field');
+  field.innerHTML = '';
+  bubblesLeft = BUBBLES_DATA.length;
+
+  const fieldW = field.offsetWidth || 320;
+  const fieldH = field.offsetHeight || 320;
+  const sz = Math.min(fieldW, fieldH) * 0.26;
+
+  // grid-ish placement to avoid overlap
+  const positions = [
+    { x: 0.08, y: 0.05 },
+    { x: 0.58, y: 0.05 },
+    { x: 0.30, y: 0.38 },
+    { x: 0.05, y: 0.62 },
+    { x: 0.60, y: 0.60 },
+  ];
+
+  BUBBLES_DATA.forEach((data, i) => {
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    const pos = positions[i];
+    const bsz = sz * rand(0.85, 1.15);
+    b.style.cssText = `
+      width:${bsz}px; height:${bsz}px;
+      left:${pos.x * (fieldW - bsz)}px;
+      top:${pos.y * (fieldH - bsz)}px;
+      animation-delay:${rand(0,2)}s;
+      border-color: ${data.color}99;
+      background: radial-gradient(circle at 35% 35%, ${data.color}40, rgba(12,12,20,0.92));
+      box-shadow: 0 0 20px ${data.color}30, inset 0 1px 0 rgba(255,255,255,0.07);
+    `;
+    b.innerHTML = `<span class="emoji">${data.emoji}</span><span class="label" style="color:${data.color};filter:brightness(1.3)">${data.label}</span>`;
+    b.addEventListener('pointerdown', e => { e.preventDefault(); popBubble(b, data.color); });
+    field.appendChild(b);
+  });
+}
+
+function popBubble(el, color) {
+  if (el.dataset.popped) return;
+  el.dataset.popped = '1';
+
+  const rect = el.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const sz = rect.width;
+
+  // ripple
+  const rip = document.createElement('div');
+  rip.className = 'ripple-pop';
+  rip.style.cssText = `left:${cx - sz/2}px; top:${cy - sz/2}px; width:${sz}px; height:${sz}px; border-color:${color};`;
+  document.body.appendChild(rip);
+  setTimeout(() => rip.remove(), 500);
+
+  // particles
+  for (let i = 0; i < 10; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    const angle = (i / 10) * Math.PI * 2;
+    const dist = rand(40, 90);
+    p.style.cssText = `
+      left:${cx}px; top:${cy}px;
+      background:${color};
+      --tx:${Math.cos(angle) * dist}px;
+      --ty:${Math.sin(angle) * dist}px;
+      animation-delay:${rand(0, 0.05)}s;
+    `;
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 600);
+  }
+
+  // vibrate
+  if (navigator.vibrate) navigator.vibrate([12, 0, 8]);
+
+  el.style.transition = 'transform 0.2s ease, opacity 0.25s ease';
+  el.style.transform = 'scale(1.3)';
+  setTimeout(() => {
+    el.style.transform = 'scale(0)';
+    el.style.opacity = '0';
+  }, 80);
+  setTimeout(() => el.remove(), 350);
+
+  bubblesLeft--;
+  if (bubblesLeft === 0) {
+    setTimeout(() => showPhase(2), 600);
+  }
+}
+
+// ─── PHASE 2: LONG PRESS ─────────────────────────────────
+let charging = false;
+let pct = 0;
+let chargeInterval = null;
+let heartInterval = null;
+
+const palmBtn = $('palm-btn');
+const fill = $('battery-fill');
+const pctText = $('pct-text');
+
+function startCharge(e) {
+  e.preventDefault();
+  if (charging) return;
+  charging = true;
+  palmBtn.classList.add('pressing');
+
+  chargeInterval = setInterval(() => {
+    pct = Math.min(pct + 1.4, 100);
+    fill.style.width = pct + '%';
+    pctText.textContent = Math.round(pct) + '%';
+    if (pct >= 100) {
+      stopCharge();
+      setTimeout(() => showPhase(3), 500);
+      setTimeout(() => spawnDust(), 1100);
+    }
+  }, 50);
+
+  heartInterval = setInterval(() => spawnHeart(), 180);
+}
+
+function stopCharge(e) {
+  if (!charging) return;
+  charging = false;
+  palmBtn.classList.remove('pressing');
+  clearInterval(chargeInterval);
+  clearInterval(heartInterval);
+}
+
+function spawnHeart() {
+  const rect = palmBtn.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+
+  const h = document.createElement('div');
+  h.className = 'heart-fly';
+  const hearts = ['❤️','💛','✦','·','❤️','💫','❤️'];
+  h.textContent = hearts[randInt(0, hearts.length)];
+  const angle = rand(-Math.PI * 1.1, -Math.PI * 1.9);
+  const dist = rand(60, 130);
+  h.style.cssText = `
+    left:${cx + rand(-20,20)}px;
+    top:${cy + rand(-10,10)}px;
+    --hx:${Math.cos(angle) * dist}px;
+    --hy:${Math.sin(angle) * dist * 0.7 - 30}px;
+    --r:${rand(-20,20)}deg;
+    animation-duration:${rand(0.9,1.4)}s;
+  `;
+  document.body.appendChild(h);
+  setTimeout(() => h.remove(), 1500);
+}
+
+palmBtn.addEventListener('pointerdown', startCharge);
+palmBtn.addEventListener('pointerup', stopCharge);
+palmBtn.addEventListener('pointerleave', stopCharge);
+palmBtn.addEventListener('touchend', stopCharge);
+
+// ─── PHASE 3: GOLD DUST ──────────────────────────────────
+function spawnDust() {
+  const phase3 = $('phase3');
+  for (let i = 0; i < 22; i++) {
+    const d = document.createElement('div');
+    d.className = 'dust';
+    const x = rand(5, 95);
+    const y = rand(5, 95);
+    d.style.cssText = `
+      left:${x}vw; top:${y}vh;
+      --dx:${rand(-30,30)}px;
+      --dy:${rand(-60,-20)}px;
+      --d:${rand(2.5,5)}s;
+      --delay:${rand(0,3)}s;
+    `;
+    phase3.appendChild(d);
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  initBubbles();
+});
+
+// prevent scroll / context menu
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+</script>
+</body>
+</html>
