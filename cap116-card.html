@@ -84,7 +84,7 @@
   <div class="subhint">每天打開，圖卡自動更新為當日內容</div>
 
   <div class="actions">
-    <button id="dlBtn" type="button">下載圖卡</button>
+    <button id="dlBtn" type="button">儲存圖卡</button>
     <button id="copyBtn" type="button">複製文字版</button>
   </div>
 
@@ -109,6 +109,12 @@ const DEFAULT_EXAM_DATE = "2027-05-15";
    ②【品牌落款】圖卡底部的署名，請改成妳要的文字
    ═══════════════════════════════════════════════════ */
 const BRAND_LINE = "🌿 暖心轉譯者・陪你一天一天倒數";
+
+/* ═══════════════════════════════════════════════════
+   ②-1【IG 帳號】顯示在圖卡右下角（小字、不搶版面）
+   留空字串 "" 則不顯示
+   ═══════════════════════════════════════════════════ */
+const IG_HANDLE = "@heart_0512";
 
 /* ═══════════════════════════════════════════════════
    ③【模擬考】115 學年度大回次遴選版本
@@ -144,7 +150,6 @@ function fmtMD(s){
   const d=parseD(s);
   return (d.getMonth()+1)+"/"+d.getDate()+"（"+WEEK[d.getDay()]+"）";
 }
-/* 找出目前該顯示的模考：進行中優先，其次最近的下一場 */
 function currentMock(){
   const today=todayMid();
   for(const m of MOCKS){
@@ -190,7 +195,6 @@ function drawCard(){
   const FONT='"PingFang TC","Heiti TC","Microsoft JhengHei",system-ui,sans-serif';
   const chalk="#F5F1E6", dim="rgba(245,241,230,.62)", hi="#F2C94C", CX=W/2;
 
-  /* 底色＋微暗角 */
   ctx.fillStyle="#22453B"; ctx.fillRect(0,0,W,H);
   const g=ctx.createLinearGradient(0,0,0,H);
   g.addColorStop(0,"rgba(0,0,0,.14)");
@@ -199,13 +203,11 @@ function drawCard(){
   g.addColorStop(1,"rgba(0,0,0,.2)");
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
 
-  /* 粉筆細框 */
   ctx.strokeStyle="rgba(245,241,230,.32)"; ctx.lineWidth=3;
   roundRect(ctx,42,42,W-84,H-84,28); ctx.stroke();
 
   ctx.textAlign="center";
 
-  /* 眉標＋日期 */
   ctx.fillStyle=dim; ctx.font="500 36px "+FONT;
   ctx.fillText("─  116 國中教育會考  ─",CX,142);
   ctx.fillStyle=chalk; ctx.font="400 40px "+FONT;
@@ -223,7 +225,6 @@ function drawCard(){
     wrapText(ctx,"深呼吸，把三年的累積穩穩寫上去。",840)
       .forEach((l,i)=>ctx.fillText(l,CX,690+i*80));
   }else{
-    /* 會考大倒數 */
     ctx.fillStyle=dim; ctx.font="500 44px "+FONT;
     ctx.fillText("距 離 會 考 還 有",CX,344);
 
@@ -240,14 +241,12 @@ function drawCard(){
     ctx.fillText("天",CX-total/2+numW+gap,610);
     ctx.textAlign="center";
 
-    /* 螢光筆底線 */
     ctx.save();
     ctx.translate(CX,662); ctx.rotate(-0.012);
     ctx.fillStyle=hi;
     roundRect(ctx,-Math.min(numW,420)/2,0,Math.min(numW,420),16,8);
     ctx.fill(); ctx.restore();
 
-    /* 下半部內容（徽章＋模考面板）於剩餘空間垂直置中 */
     const ms=milestone(days);
     const mk=currentMock();
     const zoneTop=724, zoneBottom=H-170;
@@ -256,7 +255,6 @@ function drawCard(){
     if(mk) groupH+=168;
     let cursor=zoneTop+Math.max(0,(zoneBottom-zoneTop-groupH)/2);
 
-    /* 里程碑徽章 */
     if(ms){
       ctx.font="600 36px "+FONT;
       const w=ctx.measureText(ms).width+84;
@@ -267,7 +265,6 @@ function drawCard(){
       cursor+=66+34;
     }
 
-    /* 模考面板 */
     if(mk){
       const ph=168;
       ctx.fillStyle="rgba(0,0,0,.2)";
@@ -289,9 +286,17 @@ function drawCard(){
     }
   }
 
-  /* 底部落款 */
   ctx.fillStyle=dim; ctx.font="400 34px "+FONT;
   ctx.fillText(BRAND_LINE,CX,H-88);
+
+  if(IG_HANDLE){
+    ctx.save();
+    ctx.textAlign="right";
+    ctx.fillStyle="rgba(245,241,230,.42)";
+    ctx.font="500 27px "+FONT;
+    ctx.fillText("IG "+IG_HANDLE, W-72, H-78);
+    ctx.restore();
+  }
 
   return cv;
 }
@@ -312,19 +317,33 @@ function textVersion(){
   return s;
 }
 
-let currentDataURL="";
+let currentBlob=null, currentURL="";
 function render(){
   document.getElementById("todayLabel").textContent=todayStr();
   document.getElementById("examDate").value=getExamDate();
-  currentDataURL=drawCard().toDataURL("image/png");
-  document.getElementById("cardImg").src=currentDataURL;
+  drawCard().toBlob(function(blob){
+    currentBlob=blob;
+    if(currentURL) URL.revokeObjectURL(currentURL);
+    currentURL=URL.createObjectURL(blob);
+    document.getElementById("cardImg").src=currentURL;
+  },"image/png");
+}
+
+function fileName(){
+  const d=new Date();
+  return "cap116_"+(d.getMonth()+1)+"-"+d.getDate()+".png";
 }
 
 document.getElementById("dlBtn").addEventListener("click",()=>{
+  if(!currentBlob) return;
+  const file=new File([currentBlob],fileName(),{type:"image/png"});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    navigator.share({files:[file]}).catch(()=>{});
+    return;
+  }
   const a=document.createElement("a");
-  const d=new Date();
-  a.href=currentDataURL;
-  a.download="cap116_"+(d.getMonth()+1)+"-"+d.getDate()+".png";
+  a.href=currentURL;
+  a.download=fileName();
   document.body.appendChild(a); a.click(); a.remove();
 });
 
@@ -357,3 +376,4 @@ setInterval(()=>{
 </script>
 </body>
 </html>
+  
