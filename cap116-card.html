@@ -287,15 +287,12 @@ function drawCard(){
   }
 
   ctx.fillStyle=dim; ctx.font="400 34px "+FONT;
-  ctx.fillText(BRAND_LINE,CX,H-88);
+  ctx.fillText(BRAND_LINE,CX,H-104);
 
   if(IG_HANDLE){
-    ctx.save();
-    ctx.textAlign="right";
-    ctx.fillStyle="rgba(245,241,230,.42)";
-    ctx.font="500 27px "+FONT;
-    ctx.fillText("IG "+IG_HANDLE, W-72, H-78);
-    ctx.restore();
+    ctx.fillStyle="rgba(245,241,230,.5)";
+    ctx.font="500 30px "+FONT;
+    ctx.fillText("IG "+IG_HANDLE,CX,H-58);
   }
 
   return cv;
